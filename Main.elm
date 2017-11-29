@@ -4,6 +4,8 @@ import Html exposing (..)
 import Html.Attributes exposing (..)
 import Bootstrap.CDN as CDN
 import Bootstrap.Grid as Grid
+import Bootstrap.Grid.Row as Row
+import Bootstrap.Grid.Col as Col
 import Bootstrap.Button as Button
 import Bootstrap.Card as Card
 import Bootstrap.Text as Text
@@ -45,32 +47,38 @@ subscriptions model =
 
 view : Model -> Html Msg
 view model =
-    Grid.container [ style [ ( "padding-top", "100px" ), ( "width", "50%" ) ] ]
+    Grid.container [ style [ ( "padding-top", "100px" ) ] ]
         [ CDN.stylesheet
-        , Card.config []
-            |> Card.headerH3 [] [ text "Formula" ]
-            |> Card.block [ Card.blockAlign Text.alignXsCenter ]
-                [ Card.text [] [ text "Select operations to solve the formula" ]
-                , Card.custom <|
-                    div []
-                        [ Button.linkButton [ Button.small, Button.outlineSecondary, Button.disabled True ] [ text "5" ]
-                        , Button.button [ Button.small, Button.outlineWarning, Button.attrs [ class "ml-1" ] ] [ text "?" ]
-                        , Button.linkButton [ Button.small, Button.outlineSecondary, Button.disabled True, Button.attrs [ class "ml-1" ] ] [ text "1" ]
-                        , Button.button [ Button.small, Button.outlineWarning, Button.attrs [ class "ml-1" ] ] [ text "?" ]
-                        , Button.linkButton [ Button.small, Button.outlineSecondary, Button.disabled True, Button.attrs [ class "ml-1" ] ] [ text "9" ]
-                        , Button.linkButton [ Button.small, Button.outlineSecondary, Button.disabled True, Button.attrs [ class "ml-1" ] ] [ text "=" ]
-                        , Button.linkButton [ Button.small, Button.outlineSecondary, Button.disabled True, Button.attrs [ class "ml-1" ] ] [ text "16" ]
+        , Grid.row [ Row.centerMd ]
+            [ Grid.col
+                [ Col.xs12, Col.md8, Col.lg6 ]
+                [ Card.config []
+                    |> Card.headerH3 [] [ text "Formula" ]
+                    |> Card.block [ Card.blockAlign Text.alignXsCenter ]
+                        [ Card.text [] [ text "Select operations to solve the formula" ]
+                        , Card.custom <|
+                            div []
+                                [ Button.linkButton [ Button.small, Button.outlineSecondary, Button.disabled True ] [ text "5" ]
+                                , Button.button [ Button.small, Button.outlineWarning, Button.attrs [ class "ml-1" ] ] [ text "?" ]
+                                , Button.linkButton [ Button.small, Button.outlineSecondary, Button.disabled True, Button.attrs [ class "ml-1" ] ] [ text "1" ]
+                                , Button.button [ Button.small, Button.outlineWarning, Button.attrs [ class "ml-1" ] ] [ text "?" ]
+                                , Button.linkButton [ Button.small, Button.outlineSecondary, Button.disabled True, Button.attrs [ class "ml-1" ] ] [ text "9" ]
+                                , Button.linkButton [ Button.small, Button.outlineSecondary, Button.disabled True, Button.attrs [ class "ml-1" ] ] [ text "=" ]
+                                , Button.linkButton [ Button.small, Button.outlineSecondary, Button.disabled True, Button.attrs [ class "ml-1" ] ] [ text "16" ]
+                                ]
                         ]
+                    |> Card.block [ Card.blockAlign Text.alignXsCenter ]
+                        [ Card.custom <| panelOperations <| model
+                        ]
+                    |> Card.footer []
+                        [ Button.button [ Button.outlineSecondary, Button.attrs [ class "ml-1" ] ] [ text "Reset" ]
+                        , Button.button [ Button.outlineSecondary, Button.attrs [ class "ml-1" ] ] [ text "Hint" ]
+                        , dropdownLevel model
+                        , Button.button [ Button.outlinePrimary, Button.attrs [ class "mr-1", style [ ( "float", "right" ) ] ] ] [ text "Validate" ]
+                        ]
+                    |> Card.view
                 ]
-            |> Card.block [ Card.blockAlign Text.alignXsCenter ]
-                [ Card.custom <| panelOperations <| model
-                ]
-            |> Card.footer []
-                [ Button.button [ Button.outlineSuccess, Button.attrs [ class "ml-1" ] ] [ text "New puzzle" ]
-                , Button.button [ Button.outlineSecondary, Button.attrs [ class "ml-1" ] ] [ text "Show hint" ]
-                , dropdownLevel model
-                ]
-            |> Card.view
+            ]
         ]
 
 
