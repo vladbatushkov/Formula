@@ -20,16 +20,26 @@ main =
 
 type alias Model =
     { dropdownState : Dropdown.State
-    , titleLevel : String
+    , selectedLevel : Level
     , selectedOperationPosition : OperationPosition
     , firstPositionOperation : OperationType
     , secondPositionOperation : OperationType
+    , firstValue : Int
+    , secondValue : Int
+    , thirdValue : Int
+    , resultValue : Int
     }
 
 
 model : ( Model, Cmd Msg )
 model =
-    ( Model Dropdown.initialState "Easy" None Question Question, Cmd.none )
+    ( Model Dropdown.initialState Easy None Question Question 0 0 0 0, Cmd.none )
+
+
+type Level
+    = Easy
+    | Medium
+    | Hard
 
 
 type OperationPosition
@@ -48,12 +58,11 @@ type OperationType
 
 type Msg
     = DropdownToggleMsg Dropdown.State
-    | DropdownEasyMsg
-    | DropdownMediumMsg
-    | DropdownHardMsg
+    | ChangeLevelMsg Level
     | ToggleOperationPositionMsg OperationPosition
     | ChangeOperationMsg OperationType
     | Validate
+    | NewPuzzle Level
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -64,18 +73,8 @@ update msg model =
             , Cmd.none
             )
 
-        DropdownEasyMsg ->
-            ( { model | titleLevel = "Easy" }
-            , Cmd.none
-            )
-
-        DropdownMediumMsg ->
-            ( { model | titleLevel = "Meduim" }
-            , Cmd.none
-            )
-
-        DropdownHardMsg ->
-            ( { model | titleLevel = "Hard" }
+        ChangeLevelMsg level ->
+            ( { model | selectedLevel = level }
             , Cmd.none
             )
 
@@ -112,6 +111,11 @@ update msg model =
                 )
 
         Validate ->
+            ( { model | selectedOperationPosition = None }
+            , Cmd.none
+            )
+
+        NewPuzzle level ->
             ( { model | selectedOperationPosition = None }
             , Cmd.none
             )
@@ -154,7 +158,7 @@ view model =
 panelFormula : Model -> Html Msg
 panelFormula model =
     div []
-        [ Button.linkButton [ Button.small, Button.outlineSecondary, Button.disabled True ] [ text "5" ]
+        [ Button.linkButton [ Button.small, Button.outlineSecondary, Button.disabled True ] [ text <| toString model.firstValue ]
         , Button.button
             [ Button.onClick <| ToggleOperationPositionMsg First
             , Button.small
@@ -162,7 +166,7 @@ panelFormula model =
             , Button.attrs [ class "ml-1" ]
             ]
             [ text <| mapOperationTypeToString model.firstPositionOperation ]
-        , Button.linkButton [ Button.small, Button.outlineSecondary, Button.disabled True, Button.attrs [ class "ml-1" ] ] [ text "1" ]
+        , Button.linkButton [ Button.small, Button.outlineSecondary, Button.disabled True, Button.attrs [ class "ml-1" ] ] [ text <| toString model.secondValue ]
         , Button.button
             [ Button.onClick <| ToggleOperationPositionMsg Second
             , Button.small
@@ -170,9 +174,9 @@ panelFormula model =
             , Button.attrs [ class "ml-1" ]
             ]
             [ text <| mapOperationTypeToString model.secondPositionOperation ]
-        , Button.linkButton [ Button.small, Button.outlineSecondary, Button.disabled True, Button.attrs [ class "ml-1" ] ] [ text "9" ]
+        , Button.linkButton [ Button.small, Button.outlineSecondary, Button.disabled True, Button.attrs [ class "ml-1" ] ] [ text <| toString model.thirdValue ]
         , Button.linkButton [ Button.small, Button.outlineSecondary, Button.disabled True, Button.attrs [ class "ml-1" ] ] [ text "=" ]
-        , Button.linkButton [ Button.small, Button.outlineSecondary, Button.disabled True, Button.attrs [ class "ml-1" ] ] [ text "16" ]
+        , Button.linkButton [ Button.small, Button.outlineSecondary, Button.disabled True, Button.attrs [ class "ml-1" ] ] [ text <| toString model.resultValue ]
         ]
 
 
@@ -220,10 +224,23 @@ dropdownLevel model =
         { options = [ Dropdown.attrs [ style [ ( "float", "right" ) ] ] ]
         , toggleMsg = DropdownToggleMsg
         , toggleButton =
-            Dropdown.toggle [ Button.outlinePrimary ] [ text model.titleLevel ]
+            Dropdown.toggle [ Button.outlinePrimary ] [ text <| mapLevelToString model.selectedLevel ]
         , items =
-            [ Dropdown.buttonItem [ onClick DropdownEasyMsg ] [ text "Easy" ]
-            , Dropdown.buttonItem [ onClick DropdownMediumMsg ] [ text "Medium" ]
-            , Dropdown.buttonItem [ onClick DropdownHardMsg ] [ text "Hard" ]
+            [ Dropdown.buttonItem [ onClick <| ChangeLevelMsg Easy ] [ text <| mapLevelToString Easy ]
+            , Dropdown.buttonItem [ onClick <| ChangeLevelMsg Medium ] [ text <| mapLevelToString Medium ]
+            , Dropdown.buttonItem [ onClick <| ChangeLevelMsg Hard ] [ text <| mapLevelToString Hard ]
             ]
         }
+
+
+mapLevelToString : Level -> String
+mapLevelToString level =
+    case level of
+        Easy ->
+            "Easy"
+
+        Medium ->
+            "Medium"
+
+        Hard ->
+            "Hard"
