@@ -88,9 +88,12 @@ update msg model =
             )
 
         ChangeLevelMsg level ->
-            ( { model | selectedLevel = level }
-            , Cmd.none
-            )
+            if (model.selectedLevel == level) then
+                ( model
+                , Cmd.none
+                )
+            else
+                update (NewPuzzle level) { model | selectedLevel = level }
 
         ToggleOperationPositionMsg operationPosition ->
             let
@@ -102,7 +105,7 @@ update msg model =
                     else
                         First
             in
-                ( { model | selectedOperationPosition = selectedOperationPosition }
+                ( { model | solvedStatus = Solving, selectedOperationPosition = selectedOperationPosition }
                 , Cmd.none
                 )
 
@@ -120,7 +123,10 @@ update msg model =
                     else
                         model.secondOperationType
             in
-                ( { model | firstOperationType = firstOperationType, secondOperationType = secondOperationType }
+                ( { model
+                    | firstOperationType = firstOperationType
+                    , secondOperationType = secondOperationType
+                  }
                 , Cmd.none
                 )
 
@@ -139,11 +145,11 @@ update msg model =
                         model.secondOperationType
                 )
             then
-                ( { model | solvedStatus = Solved }
+                ( { model | solvedStatus = Solved, selectedOperationPosition = None }
                 , Cmd.none
                 )
             else
-                ( { model | solvedStatus = Failed }
+                ( { model | solvedStatus = Failed, selectedOperationPosition = None }
                 , Cmd.none
                 )
 
@@ -240,25 +246,25 @@ view model =
 panelFormula : Model -> Html Msg
 panelFormula model =
     div []
-        [ Button.linkButton [ Button.small, Button.outlineSecondary, Button.disabled True ] [ text <| toString model.firstValue ]
+        [ Button.linkButton [ Button.small, resultStyle model.solvedStatus ] [ text <| toString model.firstValue ]
         , Button.button
             [ Button.onClick <| ToggleOperationPositionMsg First
             , Button.small
-            , selectedOperation <| model.selectedOperationPosition == First
+            , selectedOperation model.solvedStatus <| model.selectedOperationPosition == First
             , Button.attrs [ class "ml-1" ]
             ]
             [ text <| mapOperationTypeToString model.firstOperationType ]
-        , Button.linkButton [ Button.small, Button.outlineSecondary, Button.disabled True, Button.attrs [ class "ml-1" ] ] [ text <| toString model.secondValue ]
+        , Button.linkButton [ Button.small, resultStyle model.solvedStatus, Button.attrs [ class "ml-1" ] ] [ text <| toString model.secondValue ]
         , Button.button
             [ Button.onClick <| ToggleOperationPositionMsg Second
             , Button.small
-            , selectedOperation <| model.selectedOperationPosition == Second
+            , selectedOperation model.solvedStatus <| model.selectedOperationPosition == Second
             , Button.attrs [ class "ml-1" ]
             ]
             [ text <| mapOperationTypeToString model.secondOperationType ]
-        , Button.linkButton [ Button.small, Button.outlineSecondary, Button.disabled True, Button.attrs [ class "ml-1" ] ] [ text <| toString model.thirdValue ]
-        , Button.linkButton [ Button.small, Button.outlineSecondary, Button.disabled True, Button.attrs [ class "ml-1" ] ] [ text "=" ]
-        , Button.linkButton [ Button.small, resultStyle model.solvedStatus, Button.disabled True, Button.attrs [ class "ml-1" ] ] [ text <| toString model.resultValue ]
+        , Button.linkButton [ Button.small, resultStyle model.solvedStatus, Button.attrs [ class "ml-1" ] ] [ text <| toString model.thirdValue ]
+        , Button.linkButton [ Button.small, resultStyle model.solvedStatus, Button.attrs [ class "ml-1" ] ] [ text "=" ]
+        , Button.linkButton [ Button.small, resultStyle model.solvedStatus, Button.attrs [ class "ml-1" ] ] [ text <| toString model.resultValue ]
         ]
 
 
@@ -281,12 +287,17 @@ mapOperationTypeToString operationType =
             "/"
 
 
-selectedOperation : Bool -> Button.Option Msg
-selectedOperation isSelected =
-    if (isSelected) then
-        Button.warning
+selectedOperation : SolvedStatus -> Bool -> Button.Option Msg
+selectedOperation status isSelected =
+    if (status == Solving) then
+        if (isSelected) then
+            Button.warning
+        else
+            Button.outlineWarning
+    else if (status == Solved) then
+        Button.outlineSuccess
     else
-        Button.outlineWarning
+        Button.outlineDanger
 
 
 resultStyle : SolvedStatus -> Button.Option Msg
@@ -379,7 +390,8 @@ calculateResultValue : Int -> Int -> Int -> OperationType -> OperationType -> In
 calculateResultValue firstValue secondValue thirdValue firstOperationType secondOperationType =
     let
         isByDefaultOrder =
-            firstOperationType == Multiply || firstOperationType == Divide
+            (firstOperationType == Multiply || firstOperationType == Divide)
+                || (secondOperationType == Plus || secondOperationType == Minus)
     in
         if (isByDefaultOrder) then
             calculatePrimitive
