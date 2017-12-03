@@ -1,6 +1,7 @@
 module Main exposing (..)
 
 import Random exposing (..)
+import Arithmetic exposing (..)
 import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events exposing (..)
@@ -23,18 +24,25 @@ type alias Model =
     { dropdownState : Dropdown.State
     , selectedLevel : Level
     , selectedOperationPosition : OperationPosition
-    , firstPositionOperation : OperationType
-    , secondPositionOperation : OperationType
+    , firstOperationType : OperationType
+    , secondOperationType : OperationType
     , firstValue : Int
     , secondValue : Int
     , thirdValue : Int
     , resultValue : Int
+    , solvedStatus : SolvedStatus
     }
 
 
 model : ( Model, Cmd Msg )
 model =
-    ( Model Dropdown.initialState Easy None Question Question 0 0 0 0, Cmd.none )
+    update (NewPuzzle Easy) (Model Dropdown.initialState Easy None Question Question 0 0 0 0 Solving)
+
+
+type SolvedStatus
+    = Solved
+    | Failed
+    | Solving
 
 
 type Level
@@ -100,29 +108,47 @@ update msg model =
 
         ChangeOperationMsg operationType ->
             let
-                firstPositionOperation =
+                firstOperationType =
                     if (model.selectedOperationPosition == First) then
                         operationType
                     else
-                        model.firstPositionOperation
+                        model.firstOperationType
 
-                secondPositionOperation =
+                secondOperationType =
                     if (model.selectedOperationPosition == Second) then
                         operationType
                     else
-                        model.secondPositionOperation
+                        model.secondOperationType
             in
-                ( { model | firstPositionOperation = firstPositionOperation, secondPositionOperation = secondPositionOperation }
+                ( { model | firstOperationType = firstOperationType, secondOperationType = secondOperationType }
                 , Cmd.none
                 )
 
         Validate ->
-            ( { model | selectedOperationPosition = None }
-            , Cmd.none
-            )
+            if (model.firstOperationType == Question || model.secondOperationType == Question) then
+                ( model
+                , Cmd.none
+                )
+            else if
+                (model.resultValue
+                    == calculateResultValue
+                        model.firstValue
+                        model.secondValue
+                        model.thirdValue
+                        model.firstOperationType
+                        model.secondOperationType
+                )
+            then
+                ( { model | solvedStatus = Solved }
+                , Cmd.none
+                )
+            else
+                ( { model | solvedStatus = Failed }
+                , Cmd.none
+                )
 
         NewPuzzle level ->
-            ( { model | selectedOperationPosition = None }
+            ( Model Dropdown.initialState model.selectedLevel None Question Question 0 0 0 0 Solving
             , Cmd.batch
                 [ Random.generate ThirdValue <| generateValue level
                 , Random.generate SecondOperation generateOperation
@@ -132,13 +158,13 @@ update msg model =
                 ]
             )
 
-        FirstOperation operation ->
-            ( { model | firstPositionOperation = operation }
+        FirstOperation operationType ->
+            ( { model | firstOperationType = operationType }
             , Cmd.none
             )
 
-        SecondOperation operation ->
-            ( { model | secondPositionOperation = operation }
+        SecondOperation operationType ->
+            ( { model | secondOperationType = operationType }
             , Cmd.none
             )
 
@@ -152,13 +178,28 @@ update msg model =
             , Cmd.none
             )
 
-        ThirdValue value ->
-            ( { model
-                | thirdValue = value
-                , resultValue = calculateResultValue model value
-              }
-            , Cmd.none
-            )
+        ThirdValue thirdValue ->
+            if
+                ((model.firstOperationType == Divide && (not <| divides model.secondValue model.firstValue))
+                    || (model.secondOperationType == Divide && (not <| divides thirdValue model.secondValue))
+                )
+            then
+                update (NewPuzzle model.selectedLevel) model
+            else
+                ( { model
+                    | thirdValue = thirdValue
+                    , resultValue =
+                        calculateResultValue
+                            model.firstValue
+                            model.secondValue
+                            thirdValue
+                            model.firstOperationType
+                            model.secondOperationType
+                    , firstOperationType = Question
+                    , secondOperationType = Question
+                  }
+                , Cmd.none
+                )
 
 
 subscriptions : Model -> Sub Msg
@@ -185,7 +226,8 @@ view model =
                         ]
                     |> Card.footer []
                         [ Button.button [ Button.onClick <| NewPuzzle model.selectedLevel, Button.outlineSecondary, Button.attrs [ class "ml-1" ] ] [ text "New" ]
-                        , Button.button [ Button.outlineSecondary, Button.attrs [ class "ml-1" ] ] [ text "Hint" ]
+
+                        --, Button.button [ Button.outlineSecondary, Button.attrs [ class "ml-1" ] ] [ text "Hint" ]
                         , dropdownLevel model
                         , Button.button [ Button.onClick Validate, Button.outlinePrimary, Button.attrs [ class "mr-1", style [ ( "float", "right" ) ] ] ] [ text "Validate" ]
                         ]
@@ -205,7 +247,7 @@ panelFormula model =
             , selectedOperation <| model.selectedOperationPosition == First
             , Button.attrs [ class "ml-1" ]
             ]
-            [ text <| mapOperationTypeToString model.firstPositionOperation ]
+            [ text <| mapOperationTypeToString model.firstOperationType ]
         , Button.linkButton [ Button.small, Button.outlineSecondary, Button.disabled True, Button.attrs [ class "ml-1" ] ] [ text <| toString model.secondValue ]
         , Button.button
             [ Button.onClick <| ToggleOperationPositionMsg Second
@@ -213,10 +255,10 @@ panelFormula model =
             , selectedOperation <| model.selectedOperationPosition == Second
             , Button.attrs [ class "ml-1" ]
             ]
-            [ text <| mapOperationTypeToString model.secondPositionOperation ]
+            [ text <| mapOperationTypeToString model.secondOperationType ]
         , Button.linkButton [ Button.small, Button.outlineSecondary, Button.disabled True, Button.attrs [ class "ml-1" ] ] [ text <| toString model.thirdValue ]
         , Button.linkButton [ Button.small, Button.outlineSecondary, Button.disabled True, Button.attrs [ class "ml-1" ] ] [ text "=" ]
-        , Button.linkButton [ Button.small, Button.outlineSecondary, Button.disabled True, Button.attrs [ class "ml-1" ] ] [ text <| toString model.resultValue ]
+        , Button.linkButton [ Button.small, resultStyle model.solvedStatus, Button.disabled True, Button.attrs [ class "ml-1" ] ] [ text <| toString model.resultValue ]
         ]
 
 
@@ -245,6 +287,19 @@ selectedOperation isSelected =
         Button.warning
     else
         Button.outlineWarning
+
+
+resultStyle : SolvedStatus -> Button.Option Msg
+resultStyle status =
+    case status of
+        Solving ->
+            Button.outlineSecondary
+
+        Solved ->
+            Button.outlineSuccess
+
+        Failed ->
+            Button.outlineDanger
 
 
 panelOperations : Model -> Html Msg
@@ -320,23 +375,22 @@ generateValue lvl =
             Random.int 100 999
 
 
-calculateResultValue : Model -> Int -> Int
-calculateResultValue model thirdValue =
+calculateResultValue : Int -> Int -> Int -> OperationType -> OperationType -> Int
+calculateResultValue firstValue secondValue thirdValue firstOperationType secondOperationType =
     let
         isByDefaultOrder =
-            (model.firstPositionOperation == Multiply || model.firstPositionOperation == Divide)
-                && (model.secondPositionOperation == Plus || model.secondPositionOperation == Minus)
+            firstOperationType == Multiply || firstOperationType == Divide
     in
         if (isByDefaultOrder) then
             calculatePrimitive
-                model.secondPositionOperation
-                (calculatePrimitive model.firstPositionOperation model.firstValue model.secondValue)
+                secondOperationType
+                (calculatePrimitive firstOperationType firstValue secondValue)
                 thirdValue
         else
             calculatePrimitive
-                model.firstPositionOperation
-                model.firstValue
-                (calculatePrimitive model.secondPositionOperation model.secondValue thirdValue)
+                firstOperationType
+                firstValue
+                (calculatePrimitive secondOperationType secondValue thirdValue)
 
 
 calculatePrimitive : OperationType -> Int -> Int -> Int
