@@ -1,5 +1,6 @@
 module Main exposing (..)
 
+import Random exposing (..)
 import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events exposing (..)
@@ -63,6 +64,11 @@ type Msg
     | ChangeOperationMsg OperationType
     | Validate
     | NewPuzzle Level
+    | FirstValue Int
+    | SecondValue Int
+    | ThirdValue Int
+    | FirstOperation OperationType
+    | SecondOperation OperationType
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -117,6 +123,40 @@ update msg model =
 
         NewPuzzle level ->
             ( { model | selectedOperationPosition = None }
+            , Cmd.batch
+                [ Random.generate ThirdValue <| generateValue level
+                , Random.generate SecondOperation generateOperation
+                , Random.generate SecondValue <| generateValue level
+                , Random.generate FirstOperation generateOperation
+                , Random.generate FirstValue <| generateValue level
+                ]
+            )
+
+        FirstOperation operation ->
+            ( { model | firstPositionOperation = operation }
+            , Cmd.none
+            )
+
+        SecondOperation operation ->
+            ( { model | secondPositionOperation = operation }
+            , Cmd.none
+            )
+
+        FirstValue value ->
+            ( { model | firstValue = value }
+            , Cmd.none
+            )
+
+        SecondValue value ->
+            ( { model | secondValue = value }
+            , Cmd.none
+            )
+
+        ThirdValue value ->
+            ( { model
+                | thirdValue = value
+                , resultValue = calculateResultValue model value
+              }
             , Cmd.none
             )
 
@@ -144,7 +184,7 @@ view model =
                         [ Card.custom <| panelOperations model
                         ]
                     |> Card.footer []
-                        [ Button.button [ Button.outlineSecondary, Button.attrs [ class "ml-1" ] ] [ text "Reset" ]
+                        [ Button.button [ Button.onClick <| NewPuzzle model.selectedLevel, Button.outlineSecondary, Button.attrs [ class "ml-1" ] ] [ text "New" ]
                         , Button.button [ Button.outlineSecondary, Button.attrs [ class "ml-1" ] ] [ text "Hint" ]
                         , dropdownLevel model
                         , Button.button [ Button.onClick Validate, Button.outlinePrimary, Button.attrs [ class "mr-1", style [ ( "float", "right" ) ] ] ] [ text "Validate" ]
@@ -244,3 +284,75 @@ mapLevelToString level =
 
         Hard ->
             "Hard"
+
+
+generateOperation : Generator OperationType
+generateOperation =
+    Random.map (\a -> mapIntToOperationType a) (Random.int 1 4)
+
+
+mapIntToOperationType : Int -> OperationType
+mapIntToOperationType x =
+    case x of
+        1 ->
+            Plus
+
+        2 ->
+            Minus
+
+        3 ->
+            Multiply
+
+        _ ->
+            Divide
+
+
+generateValue : Level -> Generator Int
+generateValue lvl =
+    case lvl of
+        Easy ->
+            Random.int 1 9
+
+        Medium ->
+            Random.int 10 99
+
+        Hard ->
+            Random.int 100 999
+
+
+calculateResultValue : Model -> Int -> Int
+calculateResultValue model thirdValue =
+    let
+        isByDefaultOrder =
+            (model.firstPositionOperation == Multiply || model.firstPositionOperation == Divide)
+                && (model.secondPositionOperation == Plus || model.secondPositionOperation == Minus)
+    in
+        if (isByDefaultOrder) then
+            calculatePrimitive
+                model.secondPositionOperation
+                (calculatePrimitive model.firstPositionOperation model.firstValue model.secondValue)
+                thirdValue
+        else
+            calculatePrimitive
+                model.firstPositionOperation
+                model.firstValue
+                (calculatePrimitive model.secondPositionOperation model.secondValue thirdValue)
+
+
+calculatePrimitive : OperationType -> Int -> Int -> Int
+calculatePrimitive operationType value1 value2 =
+    case operationType of
+        Plus ->
+            value1 + value2
+
+        Minus ->
+            value1 - value2
+
+        Multiply ->
+            value1 * value2
+
+        Divide ->
+            value1 // value2
+
+        Question ->
+            0
