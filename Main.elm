@@ -19,12 +19,31 @@ main =
 
 
 type alias Model =
-    { dropdownState : Dropdown.State, titleLevel : String }
+    { dropdownState : Dropdown.State
+    , titleLevel : String
+    , selectedOperationPosition : OperationPosition
+    , firstPositionOperation : OperationType
+    , secondPositionOperation : OperationType
+    }
 
 
 model : ( Model, Cmd Msg )
 model =
-    ( Model Dropdown.initialState "Easy", Cmd.none )
+    ( Model Dropdown.initialState "Easy" None Question Question, Cmd.none )
+
+
+type OperationPosition
+    = None
+    | First
+    | Second
+
+
+type OperationType
+    = Question
+    | Plus
+    | Minus
+    | Multiply
+    | Divide
 
 
 type Msg
@@ -32,6 +51,9 @@ type Msg
     | DropdownEasyMsg
     | DropdownMediumMsg
     | DropdownHardMsg
+    | ToggleOperationPositionMsg OperationPosition
+    | ChangeOperationMsg OperationType
+    | Validate
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -54,6 +76,43 @@ update msg model =
 
         DropdownHardMsg ->
             ( { model | titleLevel = "Hard" }
+            , Cmd.none
+            )
+
+        ToggleOperationPositionMsg operationPosition ->
+            let
+                selectedOperationPosition =
+                    if (model.selectedOperationPosition == operationPosition) then
+                        None
+                    else if (operationPosition == Second) then
+                        Second
+                    else
+                        First
+            in
+                ( { model | selectedOperationPosition = selectedOperationPosition }
+                , Cmd.none
+                )
+
+        ChangeOperationMsg operationType ->
+            let
+                firstPositionOperation =
+                    if (model.selectedOperationPosition == First) then
+                        operationType
+                    else
+                        model.firstPositionOperation
+
+                secondPositionOperation =
+                    if (model.selectedOperationPosition == Second) then
+                        operationType
+                    else
+                        model.secondPositionOperation
+            in
+                ( { model | firstPositionOperation = firstPositionOperation, secondPositionOperation = secondPositionOperation }
+                , Cmd.none
+                )
+
+        Validate ->
+            ( { model | selectedOperationPosition = None }
             , Cmd.none
             )
 
@@ -84,7 +143,7 @@ view model =
                         [ Button.button [ Button.outlineSecondary, Button.attrs [ class "ml-1" ] ] [ text "Reset" ]
                         , Button.button [ Button.outlineSecondary, Button.attrs [ class "ml-1" ] ] [ text "Hint" ]
                         , dropdownLevel model
-                        , Button.button [ Button.outlinePrimary, Button.attrs [ class "mr-1", style [ ( "float", "right" ) ] ] ] [ text "Validate" ]
+                        , Button.button [ Button.onClick Validate, Button.outlinePrimary, Button.attrs [ class "mr-1", style [ ( "float", "right" ) ] ] ] [ text "Validate" ]
                         ]
                     |> Card.view
                 ]
@@ -96,22 +155,61 @@ panelFormula : Model -> Html Msg
 panelFormula model =
     div []
         [ Button.linkButton [ Button.small, Button.outlineSecondary, Button.disabled True ] [ text "5" ]
-        , Button.button [ Button.small, Button.outlineWarning, Button.attrs [ class "ml-1" ] ] [ text "?" ]
+        , Button.button
+            [ Button.onClick <| ToggleOperationPositionMsg First
+            , Button.small
+            , selectedOperation <| model.selectedOperationPosition == First
+            , Button.attrs [ class "ml-1" ]
+            ]
+            [ text <| mapOperationTypeToString model.firstPositionOperation ]
         , Button.linkButton [ Button.small, Button.outlineSecondary, Button.disabled True, Button.attrs [ class "ml-1" ] ] [ text "1" ]
-        , Button.button [ Button.small, Button.outlineWarning, Button.attrs [ class "ml-1" ] ] [ text "?" ]
+        , Button.button
+            [ Button.onClick <| ToggleOperationPositionMsg Second
+            , Button.small
+            , selectedOperation <| model.selectedOperationPosition == Second
+            , Button.attrs [ class "ml-1" ]
+            ]
+            [ text <| mapOperationTypeToString model.secondPositionOperation ]
         , Button.linkButton [ Button.small, Button.outlineSecondary, Button.disabled True, Button.attrs [ class "ml-1" ] ] [ text "9" ]
         , Button.linkButton [ Button.small, Button.outlineSecondary, Button.disabled True, Button.attrs [ class "ml-1" ] ] [ text "=" ]
         , Button.linkButton [ Button.small, Button.outlineSecondary, Button.disabled True, Button.attrs [ class "ml-1" ] ] [ text "16" ]
         ]
 
 
+mapOperationTypeToString : OperationType -> String
+mapOperationTypeToString operationType =
+    case operationType of
+        Question ->
+            "?"
+
+        Plus ->
+            "+"
+
+        Minus ->
+            "-"
+
+        Multiply ->
+            "x"
+
+        Divide ->
+            "/"
+
+
+selectedOperation : Bool -> Button.Option Msg
+selectedOperation isSelected =
+    if (isSelected) then
+        Button.warning
+    else
+        Button.outlineWarning
+
+
 panelOperations : Model -> Html Msg
 panelOperations model =
     div []
-        [ Button.button [ Button.outlineWarning ] [ text "+" ]
-        , Button.button [ Button.outlineWarning, Button.attrs [ class "ml-1" ] ] [ text "-" ]
-        , Button.button [ Button.outlineWarning, Button.attrs [ class "ml-1" ] ] [ text "x" ]
-        , Button.button [ Button.outlineWarning, Button.attrs [ class "ml-1" ] ] [ text "/" ]
+        [ Button.button [ Button.onClick <| ChangeOperationMsg Plus, Button.outlineWarning ] [ text "+" ]
+        , Button.button [ Button.onClick <| ChangeOperationMsg Minus, Button.outlineWarning, Button.attrs [ class "ml-1" ] ] [ text "-" ]
+        , Button.button [ Button.onClick <| ChangeOperationMsg Multiply, Button.outlineWarning, Button.attrs [ class "ml-1" ] ] [ text "x" ]
+        , Button.button [ Button.onClick <| ChangeOperationMsg Divide, Button.outlineWarning, Button.attrs [ class "ml-1" ] ] [ text "/" ]
         ]
 
 
