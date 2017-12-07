@@ -20,18 +20,18 @@ type alias Elements =
 
 
 type Tree
-    = Empty Node
+    = Last Int
     | Next Elements
 
 
 add : Node -> Tree -> Tree
 add node tree =
     case tree of
-        Empty n ->
-            Next <| Elements node tree
+        Last n ->
+            Next <| Elements node <| Last n
 
         Next els ->
-            add node els.rest
+            Next <| Elements node <| tree
 
 
 getValue : Node -> Int
@@ -57,8 +57,8 @@ getOperation node =
 head : Tree -> Node
 head tree =
     case tree of
-        Empty n ->
-            n
+        Last n ->
+            Nil n
 
         Next els ->
             els.current
@@ -67,16 +67,16 @@ head tree =
 calculate : Tree -> Int
 calculate tree =
     case tree of
-        Empty n ->
-            getValue n
+        Last n ->
+            n
 
         Next els ->
-            case (head tree) of
-                Nil v ->
-                    v + calculate els.rest
+            case els.current of
+                Nil val ->
+                    val
 
-                Element v o ->
-                    calculatePrimitive o v (calculate els.rest)
+                Element val op ->
+                    calculatePrimitive op val (calculate els.rest)
 
 
 calculatePrimitive : Operation -> Int -> Int -> Int
