@@ -8,37 +8,42 @@ import Formula exposing (..)
 --import Fuzz exposing (Fuzzer, int, list, string)
 
 
-getValue : Node -> Maybe Int
-getValue node =
-    case node of
-        Nil ->
-            Nothing
-
-        Element val operation ->
-            Just val
-
-
-getOperation : Node -> Maybe Operation
-getOperation node =
-    case node of
-        Nil ->
-            Nothing
-
-        Element val operation ->
-            Just operation
-
-
 suite : Test
 suite =
     describe "fromula tests"
         [ describe "formula tree"
-            [ test "when (set 1 Plus) then operation Just Plus"
+            [ test "value of Empty Tree is 0"
                 (\_ ->
-                    Expect.equal (Just Plus) ((Formula.set 1 Plus Empty) |> Formula.get |> getOperation)
+                    Expect.equal 0 <| getValue <| Formula.head <| Empty <| Nil 0
                 )
-            , test "when (set 1 Plus) then value 1"
+            , test "operation of Empty Tree is Nothing"
                 (\_ ->
-                    Expect.equal (Just 1) ((Formula.set 1 Plus Empty) |> Formula.get |> getValue)
+                    Expect.equal Nothing <| getOperation <| Formula.head <| Empty <| Nil 0
+                )
+            , test "when add (1, Plus) to Empty then head operation equals Just Plus"
+                (\_ ->
+                    Expect.equal (Just Plus)
+                        ((Formula.add (Element 1 Plus) <| Empty <| Nil 0)
+                            |> Formula.head
+                            |> getOperation
+                        )
+                )
+            , test "when add (1, Plus) to Empty then head value equals 1"
+                (\_ ->
+                    Expect.equal 1
+                        ((Formula.add (Element 1 Plus) <| Empty <| Nil 0)
+                            |> Formula.head
+                            |> getValue
+                        )
+                )
+            , test "when add (1, Plus) to Tree(2) then calucalte equals 3"
+                (\_ ->
+                    Expect.equal 3
+                        (calculate <|
+                            (Formula.add (Element 1 Plus)
+                                (Empty <| Nil 2)
+                            )
+                        )
                 )
             ]
         ]

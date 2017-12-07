@@ -9,7 +9,7 @@ type Operation
 
 
 type Node
-    = Nil
+    = Nil Int
     | Element Int Operation
 
 
@@ -20,25 +20,76 @@ type alias Elements =
 
 
 type Tree
-    = Empty
+    = Empty Node
     | Next Elements
 
 
-set : Int -> Operation -> Tree -> Tree
-set value operation tree =
+add : Node -> Tree -> Tree
+add node tree =
     case tree of
-        Empty ->
-            Elements Nil (Next (Elements (Element value operation) Empty)) |> .rest
+        Empty n ->
+            Next <| Elements node tree
 
         Next els ->
-            set value operation els.rest
+            add node els.rest
 
 
-get : Tree -> Node
-get tree =
+getValue : Node -> Int
+getValue node =
+    case node of
+        Nil val ->
+            val
+
+        Element val operation ->
+            val
+
+
+getOperation : Node -> Maybe Operation
+getOperation node =
+    case node of
+        Nil val ->
+            Nothing
+
+        Element val operation ->
+            Just operation
+
+
+head : Tree -> Node
+head tree =
     case tree of
-        Empty ->
-            Nil
+        Empty n ->
+            n
 
         Next els ->
             els.current
+
+
+calculate : Tree -> Int
+calculate tree =
+    case tree of
+        Empty n ->
+            getValue n
+
+        Next els ->
+            case (head tree) of
+                Nil v ->
+                    v + calculate els.rest
+
+                Element v o ->
+                    calculatePrimitive o v (calculate els.rest)
+
+
+calculatePrimitive : Operation -> Int -> Int -> Int
+calculatePrimitive operationType value1 value2 =
+    case operationType of
+        Plus ->
+            value1 + value2
+
+        Minus ->
+            value1 - value2
+
+        Multiply ->
+            value1 * value2
+
+        Divide ->
+            value1 // value2
