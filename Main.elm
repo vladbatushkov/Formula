@@ -30,7 +30,7 @@ type alias Model =
     , secondValue : Int
     , thirdValue : Int
     , resultValue : Int
-    , solvedStatus : SolvedStatus
+    , puzzleStatus : PuzzleStatus
     }
 
 
@@ -39,7 +39,7 @@ model =
     update (NewPuzzle Easy) (Model Dropdown.initialState Easy None Question Question 0 0 0 0 Solving)
 
 
-type SolvedStatus
+type PuzzleStatus
     = Solved
     | Failed
     | Solving
@@ -51,6 +51,8 @@ type Level
     | Hard
 
 
+{-| Hardcoded
+-}
 type OperationPosition
     = None
     | First
@@ -69,7 +71,7 @@ type Msg
     = DropdownToggleMsg Dropdown.State
     | ChangeLevelMsg Level
     | ToggleOperationPositionMsg OperationPosition
-    | ChangeOperationMsg OperationType
+    | SwapOperationMsg OperationType
     | Validate
     | NewPuzzle Level
     | FirstValue Int
@@ -105,11 +107,11 @@ update msg model =
                     else
                         First
             in
-                ( { model | solvedStatus = Solving, selectedOperationPosition = selectedOperationPosition }
+                ( { model | puzzleStatus = Solving, selectedOperationPosition = selectedOperationPosition }
                 , Cmd.none
                 )
 
-        ChangeOperationMsg operationType ->
+        SwapOperationMsg operationType ->
             let
                 firstOperationType =
                     if (model.selectedOperationPosition == First) then
@@ -145,11 +147,11 @@ update msg model =
                         model.secondOperationType
                 )
             then
-                ( { model | solvedStatus = Solved, selectedOperationPosition = None }
+                ( { model | puzzleStatus = Solved, selectedOperationPosition = None }
                 , Cmd.none
                 )
             else
-                ( { model | solvedStatus = Failed, selectedOperationPosition = None }
+                ( { model | puzzleStatus = Failed, selectedOperationPosition = None }
                 , Cmd.none
                 )
 
@@ -214,6 +216,10 @@ subscriptions model =
         [ Dropdown.subscriptions model.dropdownState DropdownToggleMsg ]
 
 
+
+--VIEW
+
+
 view : Model -> Html Msg
 view model =
     Grid.container [ style [ ( "padding-top", "100px" ) ] ]
@@ -228,14 +234,12 @@ view model =
                         , Card.custom <| panelFormula model
                         ]
                     |> Card.block [ Card.blockAlign Text.alignXsCenter ]
-                        [ Card.custom <| panelOperations model
+                        [ Card.custom <| panelCommands model
                         ]
                     |> Card.footer []
-                        [ Button.button [ Button.onClick <| NewPuzzle model.selectedLevel, Button.outlineSecondary, Button.attrs [ class "ml-1" ] ] [ text "New" ]
-
-                        --, Button.button [ Button.outlineSecondary, Button.attrs [ class "ml-1" ] ] [ text "Hint" ]
+                        [ buttonNew model
                         , dropdownLevel model
-                        , Button.button [ Button.onClick Validate, Button.outlinePrimary, Button.attrs [ class "mr-1", style [ ( "float", "right" ) ] ] ] [ text "Validate" ]
+                        , buttonValidate model
                         ]
                     |> Card.view
                 ]
@@ -243,29 +247,50 @@ view model =
         ]
 
 
+buttonNew : Model -> Html Msg
+buttonNew model =
+    Button.button [ Button.onClick <| NewPuzzle model.selectedLevel, Button.outlineSecondary, Button.attrs [ class "ml-1" ] ] [ text "New" ]
+
+
+buttonValidate : Model -> Html Msg
+buttonValidate mode =
+    Button.button [ Button.onClick Validate, Button.outlinePrimary, Button.attrs [ class "mr-1", style [ ( "float", "right" ) ] ] ] [ text "Validate" ]
+
+
 panelFormula : Model -> Html Msg
 panelFormula model =
     div []
-        [ Button.linkButton [ Button.small, resultStyle model.solvedStatus ] [ text <| toString model.firstValue ]
-        , Button.button
-            [ Button.onClick <| ToggleOperationPositionMsg First
-            , Button.small
-            , selectedOperation model.solvedStatus <| model.selectedOperationPosition == First
-            , Button.attrs [ class "ml-1" ]
-            ]
-            [ text <| mapOperationTypeToString model.firstOperationType ]
-        , Button.linkButton [ Button.small, resultStyle model.solvedStatus, Button.attrs [ class "ml-1" ] ] [ text <| toString model.secondValue ]
-        , Button.button
-            [ Button.onClick <| ToggleOperationPositionMsg Second
-            , Button.small
-            , selectedOperation model.solvedStatus <| model.selectedOperationPosition == Second
-            , Button.attrs [ class "ml-1" ]
-            ]
-            [ text <| mapOperationTypeToString model.secondOperationType ]
-        , Button.linkButton [ Button.small, resultStyle model.solvedStatus, Button.attrs [ class "ml-1" ] ] [ text <| toString model.thirdValue ]
-        , Button.linkButton [ Button.small, resultStyle model.solvedStatus, Button.attrs [ class "ml-1" ] ] [ text "=" ]
-        , Button.linkButton [ Button.small, resultStyle model.solvedStatus, Button.attrs [ class "ml-1" ] ] [ text <| toString model.resultValue ]
+        [ buttonVal model.puzzleStatus (toString model.firstValue)
+        , buttonOperation model First
+        , buttonVal model.puzzleStatus (toString model.secondValue)
+        , buttonOperation model Second
+        , buttonVal model.puzzleStatus (toString model.thirdValue)
+        , buttonVal model.puzzleStatus "="
+        , buttonVal model.puzzleStatus (toString model.resultValue)
         ]
+
+
+buttonVal : PuzzleStatus -> String -> Html Msg
+buttonVal status txt =
+    Button.linkButton [ Button.small, mapStatusToButtonStyle status, Button.attrs [ class "ml-1" ] ] [ text txt ]
+
+
+buttonOperation : Model -> OperationPosition -> Html Msg
+buttonOperation model operationPosition =
+    let
+        operationType =
+            if operationPosition == First then
+                model.firstOperationType
+            else
+                model.secondOperationType
+    in
+        Button.button
+            [ Button.onClick <| ToggleOperationPositionMsg operationPosition
+            , Button.small
+            , selectedOperation model.puzzleStatus <| model.selectedOperationPosition == operationPosition
+            , Button.attrs [ class "ml-1" ]
+            ]
+            [ text <| mapOperationTypeToString operationType ]
 
 
 mapOperationTypeToString : OperationType -> String
@@ -287,21 +312,24 @@ mapOperationTypeToString operationType =
             "/"
 
 
-selectedOperation : SolvedStatus -> Bool -> Button.Option Msg
+selectedOperation : PuzzleStatus -> Bool -> Button.Option Msg
 selectedOperation status isSelected =
-    if (status == Solving) then
-        if (isSelected) then
-            Button.warning
-        else
-            Button.outlineWarning
-    else if (status == Solved) then
-        Button.outlineSuccess
-    else
-        Button.outlineDanger
+    case status of
+        Solving ->
+            if (isSelected) then
+                Button.warning
+            else
+                Button.outlineWarning
+
+        Solved ->
+            Button.outlineSuccess
+
+        Failed ->
+            Button.outlineDanger
 
 
-resultStyle : SolvedStatus -> Button.Option Msg
-resultStyle status =
+mapStatusToButtonStyle : PuzzleStatus -> Button.Option Msg
+mapStatusToButtonStyle status =
     case status of
         Solving ->
             Button.outlineSecondary
@@ -313,13 +341,13 @@ resultStyle status =
             Button.outlineDanger
 
 
-panelOperations : Model -> Html Msg
-panelOperations model =
+panelCommands : Model -> Html Msg
+panelCommands model =
     div []
-        [ Button.button [ Button.onClick <| ChangeOperationMsg Plus, Button.outlineWarning ] [ text "+" ]
-        , Button.button [ Button.onClick <| ChangeOperationMsg Minus, Button.outlineWarning, Button.attrs [ class "ml-1" ] ] [ text "-" ]
-        , Button.button [ Button.onClick <| ChangeOperationMsg Multiply, Button.outlineWarning, Button.attrs [ class "ml-1" ] ] [ text "x" ]
-        , Button.button [ Button.onClick <| ChangeOperationMsg Divide, Button.outlineWarning, Button.attrs [ class "ml-1" ] ] [ text "/" ]
+        [ Button.button [ Button.onClick <| SwapOperationMsg Plus, Button.outlineWarning ] [ text "+" ]
+        , Button.button [ Button.onClick <| SwapOperationMsg Minus, Button.outlineWarning, Button.attrs [ class "ml-1" ] ] [ text "-" ]
+        , Button.button [ Button.onClick <| SwapOperationMsg Multiply, Button.outlineWarning, Button.attrs [ class "ml-1" ] ] [ text "x" ]
+        , Button.button [ Button.onClick <| SwapOperationMsg Divide, Button.outlineWarning, Button.attrs [ class "ml-1" ] ] [ text "/" ]
         ]
 
 

@@ -64,8 +64,8 @@ head tree =
             els.current
 
 
-calculate : Tree -> Int
-calculate tree =
+calcTree : Tree -> Int
+calcTree tree =
     case tree of
         Last n ->
             n
@@ -76,20 +76,20 @@ calculate tree =
                     val
 
                 Element val op ->
-                    calculatePrimitive op val (calculate els.rest)
+                    calcNode op val (calcTree els.rest)
 
 
-calculatePrimitive : Operation -> Int -> Int -> Int
-calculatePrimitive operationType value1 value2 =
+calcNode : Operation -> Int -> Int -> Int
+calcNode operationType val1 val2 =
     case operationType of
         Plus ->
-            value1 + value2
+            val1 + val2
 
         Minus ->
-            value1 - value2
+            val1 - val2
 
         Multiply ->
-            value1 * value2
+            val1 * val2
 
         Divide ->
-            value1 // value2
+            val1 // val2
