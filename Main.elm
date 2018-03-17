@@ -102,10 +102,8 @@ update msg model =
                 selectedOperationPosition =
                     if (model.selectedOperationPosition == operationPosition) then
                         None
-                    else if (operationPosition == Second) then
-                        Second
                     else
-                        First
+                        operationPosition
             in
                 ( { model | puzzleStatus = Solving, selectedOperationPosition = selectedOperationPosition }
                 , Cmd.none
@@ -156,7 +154,7 @@ update msg model =
                 )
 
         NewPuzzle level ->
-            ( Model Dropdown.initialState model.selectedLevel None Question Question 0 0 0 0 Solving
+            ( Model Dropdown.initialState level None Question Question 0 0 0 0 Solving
             , Cmd.batch
                 [ Random.generate ThirdValue <| generateValue level
                 , Random.generate SecondOperation generateOperation
@@ -382,7 +380,7 @@ mapLevelToString level =
 
 generateOperation : Generator OperationType
 generateOperation =
-    Random.map (\a -> mapIntToOperationType a) (Random.int 1 4)
+    Random.map mapIntToOperationType (Random.int 1 4)
 
 
 mapIntToOperationType : Int -> OperationType
